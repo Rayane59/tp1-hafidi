@@ -1,7 +1,9 @@
 package ma.emsi.hafidi.tp1.jsf;
 
 
-import ma.emsi.hafidi.tp1.service.GenerateurReponse;
+import ma.emsi.hafidi.tp1.llm.JsonAdapterPourGemini;
+import ma.emsi.hafidi.tp1.llm.LlmInteraction;
+import ma.emsi.hafidi.tp1.llm.RequeteException;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.model.SelectItem;
@@ -44,7 +46,7 @@ public class Bb implements Serializable {
      */
     private String question;
     /**
-     * Dernière réponse de l'API OpenAI.
+     * Dernière réponse de l'API Gemini.
      */
     private String reponse;
     /**
@@ -53,10 +55,38 @@ public class Bb implements Serializable {
     private StringBuilder conversation = new StringBuilder();
 
     /**
-     * Service pour modifier la question et générer la réponse.
+     * Adaptateur qui construit le JSON et conserve les échanges de cette vue.
      */
     @Inject
-    private GenerateurReponse generateurReponse;
+    private JsonAdapterPourGemini jsonAdapter;
+
+    private boolean debug;
+    private String texteRequeteJson;
+    private String texteReponseJson;
+
+    public boolean isDebug() {
+        return debug;
+    }
+
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+    }
+
+    public String getTexteRequeteJson() {
+        return texteRequeteJson;
+    }
+
+    public void setTexteRequeteJson(String texteRequeteJson) {
+        this.texteRequeteJson = texteRequeteJson;
+    }
+
+    public String getTexteReponseJson() {
+        return texteReponseJson;
+    }
+
+    public void setTexteReponseJson(String texteReponseJson) {
+        this.texteReponseJson = texteReponseJson;
+    }
 
     /**
      * Contexte JSF. Utilisé pour qu'un message d'erreur s'affiche dans le formulaire.
@@ -112,10 +142,7 @@ public class Bb implements Serializable {
     }
 
     /**
-     * Envoie la question au serveur.
-     * En attendant de l'envoyer à un LLM, le serveur fait un traitement quelconque, juste pour tester :
-     * Le traitement consiste à copier la question en minuscules et à l'entourer avec "||". Le rôle système
-     * est ajouté au début de la première réponse.
+     * Envoie la question à Gemini et affiche sa réponse.
      *
      * @return null pour rester sur la même page.
      */
@@ -128,15 +155,24 @@ public class Bb implements Serializable {
             return null;
         }
 
-        // Traite la question pour construire la réponse.
-        if (this.conversation.isEmpty()) { // Si la conversation n'a pas encore commencé
-            // Fige la liste déroulante qui permet de choisir le rôle système
-            this.roleSystemeChangeable = false;
+        if (this.conversation.isEmpty()) {
+            this.jsonAdapter.setSystemRole(this.roleSysteme);
         }
-        this.reponse = this.generateurReponse.genererReponse(this.question, this.roleSysteme);
 
-        // La conversation contient l'historique des questions-réponses depuis le début.
-        afficherConversation();
+        try {
+            LlmInteraction interaction = this.jsonAdapter.envoyerRequete(this.question);
+            this.reponse = interaction.reponseExtraite();
+            this.texteRequeteJson = interaction.questionJson();
+            this.texteReponseJson = interaction.reponseJson();
+            this.roleSystemeChangeable = false;
+            afficherConversation();
+        } catch (RequeteException e) {
+            this.reponse = null;
+            this.texteRequeteJson = e.getRequeteJson();
+            this.texteReponseJson = e.getReponseJson();
+            facesContext.addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR,
+                    "Erreur Gemini", e.getMessage()));
+        }
         return null;
     }
 
@@ -186,6 +222,15 @@ public class Bb implements Serializable {
                     are you tell them the average price of a meal.
                     """;
             this.listeRolesSysteme.add(new SelectItem(role, "Guide touristique"));
+
+            role = """
+                    Tu es un guide d'observation pour une promenade urbaine à Rabat.
+                    Transforme chaque lieu proposé en une petite enquête de terrain.
+                    Donne un détail précis à observer, une question à se poser et un indice.
+                    Adapte la mission aux contraintes déjà données par l'utilisateur.
+                    Réponds en français et signale les faits dont tu n'es pas certain.
+                    """;
+            this.listeRolesSysteme.add(new SelectItem(role, "Enquêteur de terrain à Rabat"));
         }
 
         return this.listeRolesSysteme;
