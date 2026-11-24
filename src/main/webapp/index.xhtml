@@ -58,6 +58,8 @@
                             <p:toggleSwitch id="debugSwitch" value="#{bb.debug}">
                                 <p:ajax process="@this" update="zoneDebug"/>
                             </p:toggleSwitch>
+                            <p:tooltip for="debugSwitch"
+                                       value="Affiche le JSON envoyé à Gemini et le JSON reçu en réponse."/>
                         </p:outputPanel>
                     </h:panelGrid>
 
