@@ -155,8 +155,9 @@ public class Bb implements Serializable {
             return null;
         }
 
-        if (this.conversation.isEmpty()) {
+        if (this.roleSystemeChangeable) {
             this.jsonAdapter.setSystemRole(this.roleSysteme);
+            this.roleSystemeChangeable = false;
         }
 
         try {
@@ -164,7 +165,6 @@ public class Bb implements Serializable {
             this.reponse = interaction.reponseExtraite();
             this.texteRequeteJson = interaction.questionJson();
             this.texteReponseJson = interaction.reponseJson();
-            this.roleSystemeChangeable = false;
             afficherConversation();
         } catch (RequeteException e) {
             this.reponse = null;

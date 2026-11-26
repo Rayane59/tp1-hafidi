@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 @ApplicationScoped
 public class LlmClientPourGemini {
+    private final String cle = System.getenv("GEMINI_KEY");
     private final Client clientRest = ClientBuilder.newBuilder()
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
@@ -21,7 +22,6 @@ public class LlmClientPourGemini {
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent");
 
     public Response envoyerRequete(Entity<String> requete) {
-        String cle = System.getenv("GEMINI_KEY");
         if (cle == null || cle.isBlank()) {
             throw new IllegalStateException("GEMINI_KEY est absente. Configurez-la et redémarrez Payara.");
         }
